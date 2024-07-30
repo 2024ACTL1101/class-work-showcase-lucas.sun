@@ -70,8 +70,30 @@ previous_price <- 0
 share_size <- 100
 accumulated_shares <- 0
 
-for (i in 1:nrow(amd_df)) {
-# Fill your code here
+for (i in 1:nrow(amd_df)){
+  current_price <- amd_df$close[i]
+  
+  if (previous_price == 0) {
+    amd_df$trade_type[i] <- "buy"
+    amd_df$costs_proceeds[i] <- -current_price * share_size
+    accumulated_shares <- accumulated_shares + share_size
+  } else if (current_price < previous_price) {
+    amd_df$trade_type[i] <- "buy"
+    amd_df$costs_proceeds[i] <- -current_price * share_size
+    accumulated_shares <- accumulated_shares + share_size
+  } else {
+    amd_df$trade_type[i] <- "hold"
+    amd_df$costs_proceeds[i] <- 0
+  }
+  
+  if (i == nrow(amd_df)) {
+    amd_df$trade_type[i] <- "sell"
+    amd_df$costs_proceeds[i] <- current_price * accumulated_shares
+    accumulated_shares <- 0
+  }
+
+amd_df$accumulated_shares[i] <- accumulated_shares
+previous_price <- current_price
 }
 ```
 
@@ -79,7 +101,9 @@ for (i in 1:nrow(amd_df)) {
 ### Step 3: Customize Trading Period
 - Define a trading period you wanted in the past five years 
 ```r
-# Fill your code here
+start_date <- as.Date("2021-05-20")
+end_date <- as.Date("2022-01-20")
+amd_df <- amd_df[amd_df$date >= start_date & amd_df$date <= end_date, ]
 ```
 
 
@@ -91,7 +115,47 @@ After running your algorithm, check if the trades were executed as expected. Cal
 - ROI Formula: $$\text{ROI} = \left( \frac{\text{Total Profit or Loss}}{\text{Total Capital Invested}} \right) \times 100$$
 
 ```r
-# Fill your code here
+amd_df$trade_type <- NA
+amd_df$costs_proceeds <- NA  
+amd_df$accumulated_shares <- 0 
+
+previous_price <- 0
+share_size <- 100
+accumulated_shares <- 0
+
+for (i in 1:nrow(amd_df)){
+  current_price <- amd_df$close[i]
+  
+  if (previous_price == 0) {
+    amd_df$trade_type[i] <- "buy"
+    amd_df$costs_proceeds[i] <- -current_price * share_size
+    accumulated_shares <- accumulated_shares + share_size
+  } else if (current_price < previous_price) {
+    amd_df$trade_type[i] <- "buy"
+    amd_df$costs_proceeds[i] <- -current_price * share_size
+    accumulated_shares <- accumulated_shares + share_size
+  } else {
+    amd_df$trade_type[i] <- "hold"
+    amd_df$costs_proceeds[i] <- 0
+  }
+  
+  if (i == nrow(amd_df)) {
+    amd_df$trade_type[i] <- "sell"
+    amd_df$costs_proceeds[i] <- current_price * accumulated_shares
+    accumulated_shares <- 0
+  }
+
+amd_df$accumulated_shares[i] <- accumulated_shares
+previous_price <- current_price
+}
+
+total_profit_loss <- sum(amd_df$costs_proceeds, na.rm = TRUE)
+total_capital_invested <- -sum(amd_df$costs_proceeds[amd_df$trade_type == "buy"], na.rm = TRUE)
+roi <- (total_profit_loss / total_capital_invested) * 100
+
+cat("Total Profit or Loss (P/L):", total_profit_loss, "\n")
+cat("Total Capital Invested:", total_capital_invested, "\n")
+cat("Return on Investment (ROI):", roi, "%\n")
 ```
 
 ### Step 5: Profit-Taking Strategy or Stop-Loss Mechanisum (Choose 1)
@@ -100,7 +164,56 @@ After running your algorithm, check if the trades were executed as expected. Cal
 
 
 ```r
-# Fill your code here
+amd_df$trade_type <- NA
+amd_df$costs_proceeds <- NA
+amd_df$accumulated_shares <- 0
+amd_df$avg_purchase_price <- NA
+
+previous_price <- 0
+share_size <- 100
+accumulated_shares <- 0
+total_cost <- 0
+profit_threshold <- 0.20  
+
+for (i in 1:nrow(amd_df)) {
+  current_price <- amd_df$close[i]
+  
+  if (previous_price == 0) {
+    amd_df$trade_type[i] <- "buy"
+    amd_df$costs_proceeds[i] <- -current_price * share_size
+    accumulated_shares <- accumulated_shares + share_size
+    total_cost <- total_cost + (current_price * share_size)
+  } else if (current_price < previous_price) {
+    amd_df$trade_type[i] <- "buy"
+    amd_df$costs_proceeds[i] <- -current_price * share_size
+    accumulated_shares <- accumulated_shares + share_size
+    total_cost <- total_cost + (current_price * share_size)
+  } else {
+    avg_purchase_price <- total_cost / accumulated_shares
+    if (current_price >= avg_purchase_price * (1 + profit_threshold)) {
+      shares_to_sell <- floor(accumulated_shares / 2)
+      amd_df$trade_type[i] <- "sell_half"
+      amd_df$costs_proceeds[i] <- current_price * shares_to_sell
+      accumulated_shares <- accumulated_shares - shares_to_sell
+      total_cost <- total_cost * (accumulated_shares / (accumulated_shares + shares_to_sell))
+    } else {
+      amd_df$trade_type[i] <- "hold"
+      amd_df$costs_proceeds[i] <- 0
+    }
+  }
+  
+  if (i == nrow(amd_df)) {
+    amd_df$trade_type[i] <- "sell"
+    amd_df$costs_proceeds[i] <- current_price * accumulated_shares
+    accumulated_shares <- 0
+    total_cost <- 0
+  }
+  
+  amd_df$accumulated_shares[i] <- accumulated_shares
+  amd_df$avg_purchase_price[i] <- ifelse(accumulated_shares > 0, total_cost / accumulated_shares, NA)
+  
+  previous_price <- current_price
+}
 ```
 
 
@@ -110,11 +223,15 @@ After running your algorithm, check if the trades were executed as expected. Cal
 
 
 ```r
-# Fill your code here and Disucss
+total_profit_loss <- sum(amd_df$costs_proceeds, na.rm = TRUE)
+total_capital_invested <- -sum(amd_df$costs_proceeds[amd_df$trade_type == "buy"], na.rm = TRUE)
+roi <- (total_profit_loss / total_capital_invested) * 100
+
+cat("Total Profit or Loss (P/L):", total_profit_loss, "\n")
+cat("Total Capital Invested:", total_capital_invested, "\n")
+cat("Return on Investment (ROI):", roi, "%\n")
 ```
 
-Sample Discussion: On Wednesday, December 6, 2023, AMD CEO Lisa Su discussed a new graphics processor designed for AI servers, with Microsoft and Meta as committed users. The rise in AMD shares on the following Thursday suggests that investors believe in the chipmaker's upward potential and market expectations; My first strategy earned X dollars more than second strategy on this day, therefore providing a better ROI.
-
-
+Discussion: My first strategy(Profit-taking) earned 78772 dollars with an ROI of 8.44% while my second strategy earned 96235.55.36 dollars with an ROI of 10.32% between May 20, 2021, and January 20, 2022. The ROI was positive in both strategies due to strong growth in AMD's stock price. Between May 20, 2021, and January 20, 2022, the stock price surged due to strong Q2 and Q3 2021 earnings reports that exceeded expectations and raised full-year guidance. Additionally, new product launches, such as the Ryzen 5000 series processors and Radeon RX 6000 series graphics cards, bolstered its market position. The ROI was higher in the second strategy because the profit-taking strategy resulted in most of the stock being sold during the peak in early November instead of at the end of the period when the share price dipped. However, if the share price had continued to increase, the profit-taking strategy would have ended with a lower ROI. Thus, the profit-taking strategy reduces the variance of the ROI during periods when the share price falls.
 
 
